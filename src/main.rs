@@ -28,7 +28,7 @@ fn main() -> gtk::glib::ExitCode {
             .halign(Align::Start);
 
         for name in sink.names.values() {
-            content = content.child(&label(&*name.local));
+            content = content.child(&label(&name.local));
         }
 
         for text in &sink.texts {
