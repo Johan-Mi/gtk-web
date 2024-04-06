@@ -60,6 +60,14 @@ fn activate(app: &Application) {
         )
         .build();
 
+    win.connect_key_press_event(clone!(@strong info_bar => move |_, event| {
+        if event.keyval().to_unicode() != Some('\x1b') {
+            return gtk::glib::Propagation::Proceed;
+        }
+        info_bar.hide();
+        gtk::glib::Propagation::Stop
+    }));
+
     win.show_all();
     info_bar.hide();
 }
