@@ -23,31 +23,42 @@ struct Element {
 
 impl Document {
     pub fn render(&self) -> impl IsA<Widget> {
-        self.elements[&Handle(0)].render(self)
+        self.elements[&Handle(0)].render(self).unwrap()
     }
 }
 
 impl Element {
-    pub fn render(&self, document: &Document) -> impl IsA<Widget> {
+    pub fn render(&self, document: &Document) -> Option<impl IsA<Widget>> {
+        let mut contains_something = false;
         let mut widget = gtk::Box::builder()
             .orientation(Orientation::Vertical)
             .halign(Align::Start);
         for child in &self.children {
             widget = match child {
                 NodeOrText::AppendNode(node) => {
-                    if let Some(node) = document.elements.get(node) {
-                        widget.child(&node.render(document))
+                    if let Some(node) = document
+                        .elements
+                        .get(node)
+                        .and_then(|it| it.render(document))
+                    {
+                        contains_something = true;
+                        widget.child(&node)
                     } else {
                         widget
                     }
                 }
-                NodeOrText::AppendText(text) => widget.child(&label(text)),
+                NodeOrText::AppendText(text) => {
+                    contains_something = true;
+                    widget.child(&label(text))
+                }
             }
         }
-        Frame::builder()
-            .label(&*self.name.local)
-            .child(&widget.build())
-            .build()
+        contains_something.then(|| {
+            Frame::builder()
+                .label(&*self.name.local)
+                .child(&widget.build())
+                .build()
+        })
     }
 }
 
