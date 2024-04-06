@@ -2,7 +2,7 @@ mod sink;
 pub use sink::Sink;
 
 use gtk::{glib::IsA, Align, Frame, Label, Orientation, Widget};
-use html5ever::{tree_builder::NodeOrText, QualName};
+use html5ever::{local_name, tree_builder::NodeOrText, QualName};
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,6 +29,10 @@ impl Document {
 
 impl Element {
     pub fn render(&self, document: &Document) -> Option<impl IsA<Widget>> {
+        if self.is_invisible() {
+            return None;
+        }
+
         let mut contains_something = false;
         let mut widget = gtk::Box::builder()
             .orientation(Orientation::Vertical)
@@ -59,6 +63,10 @@ impl Element {
                 .child(&widget.build())
                 .build()
         })
+    }
+
+    fn is_invisible(&self) -> bool {
+        self.name.local == local_name!("head")
     }
 }
 
