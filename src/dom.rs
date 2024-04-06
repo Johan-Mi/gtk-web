@@ -1,7 +1,9 @@
 mod sink;
 pub use sink::Sink;
 
-use gtk::{glib::IsA, Align, Frame, Label, Orientation, Widget};
+use gtk::{
+    glib::IsA, prelude::ContainerExt, Align, Frame, Label, Orientation, Widget,
+};
 use html5ever::{local_name, tree_builder::NodeOrText, QualName};
 use std::collections::HashMap;
 
@@ -34,11 +36,12 @@ impl Element {
         }
 
         let mut contains_something = false;
-        let mut widget = gtk::Box::builder()
+        let widget = gtk::Box::builder()
             .orientation(Orientation::Vertical)
-            .halign(Align::Start);
+            .halign(Align::Start)
+            .build();
         for child in &self.children {
-            widget = match child {
+            match child {
                 NodeOrText::AppendNode(node) => {
                     if let Some(node) = document
                         .elements
@@ -46,21 +49,19 @@ impl Element {
                         .and_then(|it| it.render(document))
                     {
                         contains_something = true;
-                        widget.child(&node)
-                    } else {
-                        widget
+                        widget.add(&node);
                     }
                 }
                 NodeOrText::AppendText(text) => {
                     contains_something = true;
-                    widget.child(&label(text))
+                    widget.add(&label(text));
                 }
             }
         }
         contains_something.then(|| {
             Frame::builder()
                 .label(&*self.name.local)
-                .child(&widget.build())
+                .child(&widget)
                 .build()
         })
     }
