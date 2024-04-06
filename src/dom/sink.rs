@@ -1,21 +1,37 @@
+use super::{Document, Element, Handle};
 use html5ever::{
     interface::{ElementFlags, NodeOrText, QuirksMode, TreeSink},
+    local_name, namespace_url, ns,
     tendril::StrTendril,
     Attribute, ExpandedName, QualName,
 };
 use std::{borrow::Cow, collections::HashMap};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Handle(usize);
-
-#[derive(Default)]
 pub struct Sink {
+    pub document: Document,
     next_id: usize,
-    pub names: HashMap<Handle, QualName>,
-    pub texts: Vec<StrTendril>,
 }
 
 impl Sink {
+    pub fn new() -> Self {
+        Self {
+            document: Document {
+                elements: HashMap::from([(
+                    Handle(0),
+                    Element {
+                        name: QualName {
+                            prefix: None,
+                            ns: ns!(html),
+                            local: local_name!("root"),
+                        },
+                        children: Vec::new(),
+                    },
+                )]),
+            },
+            next_id: 1,
+        }
+    }
+
     fn new_handle(&mut self) -> Handle {
         let id = self.next_id;
         self.next_id += 1;
@@ -25,9 +41,10 @@ impl Sink {
 
 impl TreeSink for Sink {
     type Handle = Handle;
-    type Output = Self;
-    fn finish(self) -> Self {
-        self
+    type Output = Document;
+
+    fn finish(self) -> Document {
+        self.document
     }
 
     fn get_document(&mut self) -> Handle {
@@ -43,7 +60,7 @@ impl TreeSink for Sink {
     }
 
     fn elem_name(&self, target: &Handle) -> ExpandedName {
-        self.names[target].expanded()
+        self.document.elements[target].name.expanded()
     }
 
     fn create_element(
@@ -53,12 +70,16 @@ impl TreeSink for Sink {
         _: ElementFlags,
     ) -> Handle {
         let handle = self.new_handle();
-        self.names.insert(handle, name);
+        let element = Element {
+            name,
+            children: Vec::new(),
+        };
+        self.document.elements.insert(handle, element);
         handle
     }
 
     fn create_comment(&mut self, _text: StrTendril) -> Handle {
-        self.new_handle()
+        Handle::INVALID
     }
 
     fn create_pi(&mut self, _: StrTendril, _: StrTendril) -> Handle {
@@ -79,10 +100,13 @@ impl TreeSink for Sink {
 
     fn set_quirks_mode(&mut self, _: QuirksMode) {}
 
-    fn append(&mut self, _: &Handle, child: NodeOrText<Handle>) {
-        if let NodeOrText::AppendText(text) = child {
-            self.texts.push(text);
-        }
+    fn append(&mut self, parent: &Handle, child: NodeOrText<Handle>) {
+        self.document
+            .elements
+            .get_mut(parent)
+            .unwrap()
+            .children
+            .push(child);
     }
 
     fn append_doctype_to_document(
