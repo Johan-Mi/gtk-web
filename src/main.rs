@@ -31,6 +31,10 @@ fn main() -> gtk::glib::ExitCode {
             content = content.child(&Label::new(Some(&*name.local)));
         }
 
+        for text in &sink.texts {
+            content = content.child(&Label::new(Some(text)));
+        }
+
         let win = ApplicationWindow::builder()
             .application(app)
             .default_width(320)

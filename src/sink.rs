@@ -12,6 +12,7 @@ pub struct Handle(usize);
 pub struct Sink {
     next_id: usize,
     pub names: HashMap<Handle, QualName>,
+    pub texts: Vec<StrTendril>,
 }
 
 impl Sink {
@@ -78,7 +79,11 @@ impl TreeSink for Sink {
 
     fn set_quirks_mode(&mut self, _: QuirksMode) {}
 
-    fn append(&mut self, _: &Handle, _: NodeOrText<Handle>) {}
+    fn append(&mut self, _: &Handle, child: NodeOrText<Handle>) {
+        if let NodeOrText::AppendText(text) = child {
+            self.texts.push(text);
+        }
+    }
 
     fn append_doctype_to_document(
         &mut self,
