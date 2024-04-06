@@ -1,7 +1,7 @@
 mod sink;
 pub use sink::Sink;
 
-use gtk::{glib::IsA, Align, Label, Orientation, Widget};
+use gtk::{glib::IsA, Align, Frame, Label, Orientation, Widget};
 use html5ever::{tree_builder::NodeOrText, QualName};
 use std::collections::HashMap;
 
@@ -44,7 +44,10 @@ impl Element {
                 NodeOrText::AppendText(text) => widget.child(&label(text)),
             }
         }
-        widget.build()
+        Frame::builder()
+            .label(&*self.name.local)
+            .child(&widget.build())
+            .build()
     }
 }
 
