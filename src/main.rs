@@ -5,6 +5,7 @@ mod sink;
 
 use gtk::{
     prelude::*, Align, Application, ApplicationWindow, Label, Orientation,
+    ScrolledWindow,
 };
 use html5ever::tendril::TendrilSink;
 
@@ -35,7 +36,7 @@ fn main() {
             .default_width(320)
             .default_height(200)
             .title("Hello, World!")
-            .child(&content.build())
+            .child(&ScrolledWindow::builder().child(&content.build()).build())
             .build();
 
         win.show_all();
