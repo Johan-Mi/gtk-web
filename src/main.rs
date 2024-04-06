@@ -9,7 +9,7 @@ use gtk::{
 };
 use html5ever::tendril::TendrilSink;
 
-fn main() {
+fn main() -> gtk::glib::ExitCode {
     let sink = html5ever::parse_document(
         sink::Sink::default(),
         html5ever::ParseOpts::default(),
@@ -42,5 +42,5 @@ fn main() {
         win.show_all();
     });
 
-    app.run();
+    app.run()
 }
