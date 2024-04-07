@@ -1,9 +1,7 @@
 mod sink;
 pub use sink::Sink;
 
-use gtk::{
-    glib::IsA, prelude::ContainerExt, Align, Frame, Label, Orientation, Widget,
-};
+use gtk::{prelude::ContainerExt, Align, Frame, Label, Orientation, Widget};
 use html5ever::{local_name, tree_builder::NodeOrText, QualName};
 use std::collections::HashMap;
 
@@ -24,13 +22,13 @@ struct Element {
 }
 
 impl Document {
-    pub fn render(&self) -> impl IsA<Widget> {
+    pub fn render(&self) -> Widget {
         self.elements[&Handle(0)].render(self).unwrap()
     }
 }
 
 impl Element {
-    pub fn render(&self, document: &Document) -> Option<impl IsA<Widget>> {
+    pub fn render(&self, document: &Document) -> Option<Widget> {
         if self.is_invisible() {
             return None;
         }
@@ -63,6 +61,7 @@ impl Element {
                 .label(&*self.name.local)
                 .child(&widget)
                 .build()
+                .into()
         })
     }
 
