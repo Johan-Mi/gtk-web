@@ -23,7 +23,9 @@ struct Element {
 
 impl Document {
     pub fn render(&self) -> Widget {
-        self.elements[&Handle(0)].render(self).unwrap()
+        self.elements[&Handle(0)]
+            .render(self)
+            .unwrap_or_else(|| gtk::Box::default().into())
     }
 }
 
