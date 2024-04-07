@@ -52,7 +52,7 @@ impl TreeSink for Sink {
     }
 
     fn get_template_contents(&mut self, _: &Handle) -> Handle {
-        unimplemented!()
+        Handle::INVALID
     }
 
     fn same_node(&self, x: &Handle, y: &Handle) -> bool {
@@ -83,7 +83,7 @@ impl TreeSink for Sink {
     }
 
     fn create_pi(&mut self, _: StrTendril, _: StrTendril) -> Handle {
-        unimplemented!()
+        Handle::INVALID
     }
 
     fn append_before_sibling(&mut self, _: &Handle, _: NodeOrText<Handle>) {}
