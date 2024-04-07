@@ -84,6 +84,7 @@ fn open(url: &str, view: &ScrolledWindow) -> Result<(), Box<dyn Error>> {
                     parts.0.send(bytes.into()).unwrap();
                     Ok(bytes.len())
                 })?;
+                easy.follow_location(true)?;
                 easy.perform()
             })
             .join()
