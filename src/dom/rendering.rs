@@ -40,11 +40,7 @@ impl Element {
                 NodeOrText::AppendText(text) => {
                     contains_something = true;
                     let label = label(text);
-                    if self.name.local == local_name!("h1") {
-                        let attrs = AttrList::new();
-                        attrs.insert(AttrSize::new(32 * gtk::pango::SCALE));
-                        label.set_attributes(Some(&attrs));
-                    }
+                    self.style_label(&label);
                     widget.add(&label);
                 }
             }
@@ -60,6 +56,22 @@ impl Element {
 
     fn is_invisible(&self) -> bool {
         self.name.local == local_name!("head")
+    }
+
+    fn style_label(&self, label: &Label) {
+        if let Some(scale) = match self.name.local {
+            local_name!("h1") => Some(32),
+            local_name!("h2") => Some(24),
+            local_name!("h3") => Some(19),
+            local_name!("h4") => Some(16),
+            local_name!("h5") => Some(13),
+            local_name!("h6") => Some(11),
+            _ => None,
+        } {
+            let attrs = AttrList::new();
+            attrs.insert(AttrSize::new(scale * gtk::pango::SCALE));
+            label.set_attributes(Some(&attrs));
+        }
     }
 }
 
