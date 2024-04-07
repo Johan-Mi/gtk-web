@@ -36,6 +36,9 @@ fn activate(app: &Application) {
                 return gtk::glib::Propagation::Proceed;
             }
             if let Err(err) = open(&url_bar.text(), &view) {
+                for child in info_bar.children() {
+                    info_bar.remove(&child);
+                }
                 info_bar.set_child(Some(
                     &gtk::Label::new(Some(&err.to_string()))
                 ));
