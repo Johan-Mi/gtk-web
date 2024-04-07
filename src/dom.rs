@@ -1,7 +1,11 @@
 mod sink;
 pub use sink::Sink;
 
-use gtk::{prelude::ContainerExt, Align, Frame, Label, Orientation, Widget};
+use gtk::{
+    pango::{AttrList, AttrSize},
+    prelude::{ContainerExt, LabelExt},
+    Align, Frame, Label, Orientation, Widget,
+};
 use html5ever::{local_name, tree_builder::NodeOrText, QualName};
 use std::collections::HashMap;
 
@@ -54,7 +58,13 @@ impl Element {
                 }
                 NodeOrText::AppendText(text) => {
                     contains_something = true;
-                    widget.add(&label(text));
+                    let label = label(text);
+                    if self.name.local == local_name!("h1") {
+                        let attrs = AttrList::new();
+                        attrs.insert(AttrSize::new(32 * gtk::pango::SCALE));
+                        label.set_attributes(Some(&attrs));
+                    }
+                    widget.add(&label);
                 }
             }
         }
