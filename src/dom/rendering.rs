@@ -5,9 +5,13 @@ use gtk::{
     Align, Box, Frame, Label, Orientation, Widget,
 };
 use html5ever::{local_name, tree_builder::NodeOrText};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static FRAME: AtomicBool = AtomicBool::new(false);
 
 impl Document {
     pub fn render(&self) -> Widget {
+        FRAME.store(std::env::var_os("FRAME").is_some(), Ordering::Relaxed);
         self.elements[&Handle(0)]
             .render(self)
             .unwrap_or_else(|| Box::default().into())
@@ -46,11 +50,15 @@ impl Element {
             }
         }
         contains_something.then(|| {
-            Frame::builder()
-                .label(&*self.name.local)
-                .child(&widget)
-                .build()
-                .into()
+            if FRAME.load(Ordering::Relaxed) {
+                Frame::builder()
+                    .label(&*self.name.local)
+                    .child(&widget)
+                    .build()
+                    .into()
+            } else {
+                widget.into()
+            }
         })
     }
 
