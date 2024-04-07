@@ -102,6 +102,9 @@ fn open(url: &str, view: &ScrolledWindow) -> Result<(), Box<dyn Error>> {
     .from_iter(parts.1.into_iter().map(|it| ByteTendril::from(&*it)));
 
     let content = document.render();
+    if let Some(child) = view.child() {
+        view.remove(&child);
+    }
     view.set_child(Some(&content));
     content.show_all();
 
