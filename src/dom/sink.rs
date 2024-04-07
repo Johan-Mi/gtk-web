@@ -101,12 +101,9 @@ impl TreeSink for Sink {
     fn set_quirks_mode(&mut self, _: QuirksMode) {}
 
     fn append(&mut self, parent: &Handle, child: NodeOrText<Handle>) {
-        self.document
-            .elements
-            .get_mut(parent)
-            .unwrap()
-            .children
-            .push(child);
+        if let Some(parent) = self.document.elements.get_mut(parent) {
+            parent.children.push(child);
+        }
     }
 
     fn append_doctype_to_document(
