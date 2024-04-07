@@ -102,7 +102,15 @@ impl TreeSink for Sink {
 
     fn append(&mut self, parent: &Handle, child: NodeOrText<Handle>) {
         if let Some(parent) = self.document.elements.get_mut(parent) {
-            parent.children.push(child);
+            if let (
+                Some(NodeOrText::AppendText(old_text)),
+                NodeOrText::AppendText(new_text),
+            ) = (parent.children.last_mut(), &child)
+            {
+                old_text.push_tendril(new_text);
+            } else {
+                parent.children.push(child);
+            }
         }
     }
 
