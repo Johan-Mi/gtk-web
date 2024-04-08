@@ -27,10 +27,15 @@ fn activate(app: &Application) {
         .message_type(gtk::MessageType::Error)
         .build();
 
-    let browser = Rc::new(Browser { view, info_bar });
-
     let url_bar = Entry::new();
-    url_bar.connect_key_press_event(
+
+    let browser = Rc::new(Browser {
+        view,
+        info_bar,
+        url_bar,
+    });
+
+    browser.url_bar.connect_key_press_event(
         clone!(@strong browser => move |url_bar, event| {
             if event.keyval().to_unicode() != Some('\r') {
                 return gtk::glib::Propagation::Proceed;
@@ -48,7 +53,7 @@ fn activate(app: &Application) {
         .child(
             &gtk::Grid::builder()
                 .orientation(gtk::Orientation::Vertical)
-                .child(&url_bar)
+                .child(&browser.url_bar)
                 .child(&browser.view)
                 .child(&browser.info_bar)
                 .build(),
@@ -70,6 +75,7 @@ fn activate(app: &Application) {
 struct Browser {
     view: ScrolledWindow,
     info_bar: InfoBar,
+    url_bar: Entry,
 }
 
 impl Browser {
@@ -87,7 +93,7 @@ impl Browser {
     fn open_impl(self: &Rc<Self>, url: &str) -> Result<(), Box<dyn Error>> {
         let parts = mpsc::channel::<Box<[u8]>>();
 
-        std::thread::scope(|scope| {
+        let url = std::thread::scope(|scope| {
             scope
                 .spawn(|| {
                     let mut easy = curl::easy::Easy::new();
@@ -97,7 +103,8 @@ impl Browser {
                         Ok(bytes.len())
                     })?;
                     easy.follow_location(true)?;
-                    easy.perform()
+                    easy.perform()?;
+                    easy.effective_url().map(Option::unwrap).map(String::from)
                 })
                 .join()
         })
@@ -116,6 +123,8 @@ impl Browser {
         }
         self.view.set_child(Some(&content));
         content.show_all();
+
+        self.url_bar.set_text(&url);
 
         Ok(())
     }
