@@ -4,8 +4,8 @@
 mod dom;
 
 use gtk::{
-    glib::clone, prelude::*, Application, ApplicationWindow, Entry, InfoBar,
-    ScrolledWindow,
+    gio::ActionEntry, glib::clone, prelude::*, Application, ApplicationWindow,
+    Entry, InfoBar, ScrolledWindow,
 };
 use html5ever::tendril::{ByteTendril, TendrilSink};
 use std::{error::Error, rc::Rc, sync::mpsc};
@@ -70,6 +70,15 @@ fn activate(app: &Application) {
         browser.info_bar.hide();
         gtk::glib::Propagation::Stop
     }));
+
+    win.add_action_entries([ActionEntry::builder("select-ui-bar")
+        .activate(
+            clone!(@strong browser => move |_: &ApplicationWindow, _, _| {
+                browser.url_bar.grab_focus();
+            }),
+        )
+        .build()]);
+    app.set_accels_for_action("win.select-ui-bar", &["<Ctrl>L"]);
 
     win.show_all();
     browser.info_bar.hide();
