@@ -75,7 +75,7 @@ fn activate(app: &Application) {
     info_bar.hide();
 }
 
-fn open(url: &str, view: &ScrolledWindow) -> Result<(), Box<dyn Error>> {
+fn open(url: &str, view: &Rc<ScrolledWindow>) -> Result<(), Box<dyn Error>> {
     let parts = mpsc::channel::<Box<[u8]>>();
 
     std::thread::scope(|scope| {
@@ -101,7 +101,7 @@ fn open(url: &str, view: &ScrolledWindow) -> Result<(), Box<dyn Error>> {
     .from_utf8()
     .from_iter(parts.1.into_iter().map(|it| ByteTendril::from(&*it)));
 
-    let content = document.render();
+    let content = document.render(view);
     if let Some(child) = view.child() {
         view.remove(&child);
     }

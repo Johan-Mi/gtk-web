@@ -1,25 +1,33 @@
 use super::{Document, Element, Handle};
 use gtk::{
+    glib::{clone, Propagation},
     pango::{AttrList, AttrSize},
-    prelude::{ContainerExt, LabelExt},
-    Align, Box, Frame, Label, LinkButton, Orientation, Widget,
+    prelude::{ContainerExt, LabelExt, LinkButtonExt},
+    Align, Box, Frame, Label, LinkButton, Orientation, ScrolledWindow, Widget,
 };
 use html5ever::{local_name, tree_builder::NodeOrText};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 static FRAME: AtomicBool = AtomicBool::new(false);
 
 impl Document {
-    pub fn render(&self) -> Widget {
+    pub fn render(&self, view: &Rc<ScrolledWindow>) -> Widget {
         FRAME.store(std::env::var_os("FRAME").is_some(), Ordering::Relaxed);
         self.elements[&Handle(0)]
-            .render(self)
+            .render(self, view)
             .unwrap_or_else(|| Box::default().into())
     }
 }
 
 impl Element {
-    pub fn render(&self, document: &Document) -> Option<Widget> {
+    pub fn render(
+        &self,
+        document: &Document,
+        view: &Rc<ScrolledWindow>,
+    ) -> Option<Widget> {
         if self.is_invisible() {
             return None;
         }
@@ -35,7 +43,7 @@ impl Element {
                     if let Some(node) = document
                         .elements
                         .get(node)
-                        .and_then(|it| it.render(document))
+                        .and_then(|it| it.render(document, view))
                     {
                         contains_something = true;
                         widget.add(&node);
@@ -50,7 +58,17 @@ impl Element {
                         }),
                         &self.name.local,
                     ) {
-                        widget.add(&LinkButton::with_label(href, text));
+                        let link = LinkButton::with_label(href, text);
+                        link.connect_activate_link(
+                            clone!(@strong view => move |link| {
+                                link.uri().map_or(Propagation::Proceed, |uri| {
+                                    // FIXME: show error
+                                    let _ = crate::open(&uri, &view);
+                                    Propagation::Stop
+                                })
+                            }),
+                        );
+                        widget.add(&link);
                     } else {
                         let label = label(text);
                         self.style_label(&label);
