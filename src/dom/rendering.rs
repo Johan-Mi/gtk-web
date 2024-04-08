@@ -63,8 +63,7 @@ impl Element {
                         link.connect_activate_link(
                             clone!(@strong browser => move |link| {
                                 link.uri().map_or(Propagation::Proceed, |uri| {
-                                    // FIXME: show error
-                                    let _ = browser.open(&uri);
+                                    browser.open(&uri);
                                     Propagation::Stop
                                 })
                             }),

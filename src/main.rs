@@ -22,29 +22,20 @@ fn main() -> gtk::glib::ExitCode {
 
 fn activate(app: &Application) {
     let view = ScrolledWindow::builder().expand(true).build();
-    let browser = Rc::new(Browser { view });
 
-    let info_bar = Rc::new(
-        InfoBar::builder()
-            .message_type(gtk::MessageType::Error)
-            .build(),
-    );
+    let info_bar = InfoBar::builder()
+        .message_type(gtk::MessageType::Error)
+        .build();
+
+    let browser = Rc::new(Browser { view, info_bar });
 
     let url_bar = Entry::new();
     url_bar.connect_key_press_event(
-        clone!(@strong info_bar, @strong browser => move |url_bar, event| {
+        clone!(@strong browser => move |url_bar, event| {
             if event.keyval().to_unicode() != Some('\r') {
                 return gtk::glib::Propagation::Proceed;
             }
-            if let Err(err) = browser.open(&url_bar.text()) {
-                for child in info_bar.children() {
-                    info_bar.remove(&child);
-                }
-                info_bar.set_child(Some(
-                    &gtk::Label::new(Some(&err.to_string()))
-                ));
-                info_bar.show_all();
-            }
+            browser.open(&url_bar.text());
             gtk::glib::Propagation::Stop
         }),
     );
@@ -59,29 +50,41 @@ fn activate(app: &Application) {
                 .orientation(gtk::Orientation::Vertical)
                 .child(&url_bar)
                 .child(&browser.view)
-                .child(&*info_bar)
+                .child(&browser.info_bar)
                 .build(),
         )
         .build();
 
-    win.connect_key_press_event(clone!(@strong info_bar => move |_, event| {
+    win.connect_key_press_event(clone!(@strong browser => move |_, event| {
         if event.keyval().to_unicode() != Some('\x1b') {
             return gtk::glib::Propagation::Proceed;
         }
-        info_bar.hide();
+        browser.info_bar.hide();
         gtk::glib::Propagation::Stop
     }));
 
     win.show_all();
-    info_bar.hide();
+    browser.info_bar.hide();
 }
 
 struct Browser {
     view: ScrolledWindow,
+    info_bar: InfoBar,
 }
 
 impl Browser {
-    fn open(self: &Rc<Self>, url: &str) -> Result<(), Box<dyn Error>> {
+    fn open(self: &Rc<Self>, url: &str) {
+        if let Err(err) = self.open_impl(url) {
+            for child in self.info_bar.children() {
+                self.info_bar.remove(&child);
+            }
+            self.info_bar
+                .set_child(Some(&gtk::Label::new(Some(&err.to_string()))));
+            self.info_bar.show_all();
+        }
+    }
+
+    fn open_impl(self: &Rc<Self>, url: &str) -> Result<(), Box<dyn Error>> {
         let parts = mpsc::channel::<Box<[u8]>>();
 
         std::thread::scope(|scope| {
