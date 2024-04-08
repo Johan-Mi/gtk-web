@@ -2,7 +2,7 @@ use super::{Document, Element, Handle};
 use gtk::{
     pango::{AttrList, AttrSize},
     prelude::{ContainerExt, LabelExt},
-    Align, Box, Frame, Label, Orientation, Widget,
+    Align, Box, Frame, Label, LinkButton, Orientation, Widget,
 };
 use html5ever::{local_name, tree_builder::NodeOrText};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -43,9 +43,19 @@ impl Element {
                 }
                 NodeOrText::AppendText(text) => {
                     contains_something = true;
-                    let label = label(text);
-                    self.style_label(&label);
-                    widget.add(&label);
+                    if let (Some(href), &local_name!("a")) = (
+                        self.attrs.iter().find_map(|it| {
+                            (it.name.local == local_name!("href"))
+                                .then_some(&*it.value)
+                        }),
+                        &self.name.local,
+                    ) {
+                        widget.add(&LinkButton::with_label(href, text));
+                    } else {
+                        let label = label(text);
+                        self.style_label(&label);
+                        widget.add(&label);
+                    }
                 }
             }
         }

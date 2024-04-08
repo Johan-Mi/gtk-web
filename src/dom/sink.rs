@@ -24,6 +24,7 @@ impl Sink {
                             ns: ns!(html),
                             local: local_name!("root"),
                         },
+                        attrs: Vec::new(),
                         children: Vec::new(),
                     },
                 )]),
@@ -66,12 +67,13 @@ impl TreeSink for Sink {
     fn create_element(
         &mut self,
         name: QualName,
-        _: Vec<Attribute>,
+        attrs: Vec<Attribute>,
         _: ElementFlags,
     ) -> Handle {
         let handle = self.new_handle();
         let element = Element {
             name,
+            attrs,
             children: Vec::new(),
         };
         self.document.elements.insert(handle, element);

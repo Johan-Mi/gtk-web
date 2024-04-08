@@ -2,7 +2,7 @@ mod rendering;
 mod sink;
 pub use sink::Sink;
 
-use html5ever::{tree_builder::NodeOrText, QualName};
+use html5ever::{tree_builder::NodeOrText, Attribute, QualName};
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,5 +18,6 @@ pub struct Document {
 
 struct Element {
     name: QualName,
+    attrs: Vec<Attribute>,
     children: Vec<NodeOrText<Handle>>,
 }
