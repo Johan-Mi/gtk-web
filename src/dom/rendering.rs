@@ -112,5 +112,9 @@ impl Element {
 }
 
 fn label(text: &str) -> Label {
-    Label::builder().label(text).halign(Align::Start).build()
+    Label::builder()
+        .label(text)
+        .halign(Align::Start)
+        .wrap(true)
+        .build()
 }

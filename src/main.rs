@@ -21,7 +21,10 @@ fn main() -> gtk::glib::ExitCode {
 }
 
 fn activate(app: &Application) {
-    let view = ScrolledWindow::builder().expand(true).build();
+    let view = ScrolledWindow::builder()
+        .expand(true)
+        .propagate_natural_width(true)
+        .build();
 
     let info_bar = InfoBar::builder()
         .message_type(gtk::MessageType::Error)
