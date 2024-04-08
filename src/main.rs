@@ -21,7 +21,8 @@ fn main() -> gtk::glib::ExitCode {
 }
 
 fn activate(app: &Application) {
-    let view = Rc::new(ScrolledWindow::builder().expand(true).build());
+    let view = ScrolledWindow::builder().expand(true).build();
+    let browser = Rc::new(Browser { view });
 
     let info_bar = Rc::new(
         InfoBar::builder()
@@ -31,11 +32,11 @@ fn activate(app: &Application) {
 
     let url_bar = Entry::new();
     url_bar.connect_key_press_event(
-        clone!(@strong info_bar, @strong view => move |url_bar, event| {
+        clone!(@strong info_bar, @strong browser => move |url_bar, event| {
             if event.keyval().to_unicode() != Some('\r') {
                 return gtk::glib::Propagation::Proceed;
             }
-            if let Err(err) = open(&url_bar.text(), &view) {
+            if let Err(err) = browser.open(&url_bar.text()) {
                 for child in info_bar.children() {
                     info_bar.remove(&child);
                 }
@@ -57,7 +58,7 @@ fn activate(app: &Application) {
             &gtk::Grid::builder()
                 .orientation(gtk::Orientation::Vertical)
                 .child(&url_bar)
-                .child(&*view)
+                .child(&browser.view)
                 .child(&*info_bar)
                 .build(),
         )
@@ -75,38 +76,44 @@ fn activate(app: &Application) {
     info_bar.hide();
 }
 
-fn open(url: &str, view: &Rc<ScrolledWindow>) -> Result<(), Box<dyn Error>> {
-    let parts = mpsc::channel::<Box<[u8]>>();
+struct Browser {
+    view: ScrolledWindow,
+}
 
-    std::thread::scope(|scope| {
-        scope
-            .spawn(|| {
-                let mut easy = curl::easy::Easy::new();
-                easy.url(url)?;
-                easy.write_function(move |bytes| {
-                    parts.0.send(bytes.into()).unwrap();
-                    Ok(bytes.len())
-                })?;
-                easy.follow_location(true)?;
-                easy.perform()
-            })
-            .join()
-    })
-    .unwrap()?;
+impl Browser {
+    fn open(self: &Rc<Self>, url: &str) -> Result<(), Box<dyn Error>> {
+        let parts = mpsc::channel::<Box<[u8]>>();
 
-    let document = html5ever::parse_document(
-        dom::Sink::new(),
-        html5ever::ParseOpts::default(),
-    )
-    .from_utf8()
-    .from_iter(parts.1.into_iter().map(|it| ByteTendril::from(&*it)));
+        std::thread::scope(|scope| {
+            scope
+                .spawn(|| {
+                    let mut easy = curl::easy::Easy::new();
+                    easy.url(url)?;
+                    easy.write_function(move |bytes| {
+                        parts.0.send(bytes.into()).unwrap();
+                        Ok(bytes.len())
+                    })?;
+                    easy.follow_location(true)?;
+                    easy.perform()
+                })
+                .join()
+        })
+        .unwrap()?;
 
-    let content = document.render(view);
-    if let Some(child) = view.child() {
-        view.remove(&child);
+        let document = html5ever::parse_document(
+            dom::Sink::new(),
+            html5ever::ParseOpts::default(),
+        )
+        .from_utf8()
+        .from_iter(parts.1.into_iter().map(|it| ByteTendril::from(&*it)));
+
+        let content = document.render(self);
+        if let Some(child) = self.view.child() {
+            self.view.remove(&child);
+        }
+        self.view.set_child(Some(&content));
+        content.show_all();
+
+        Ok(())
     }
-    view.set_child(Some(&content));
-    content.show_all();
-
-    Ok(())
 }

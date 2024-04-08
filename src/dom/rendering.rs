@@ -1,9 +1,10 @@
 use super::{Document, Element, Handle};
+use crate::Browser;
 use gtk::{
     glib::{clone, Propagation},
     pango::{AttrList, AttrSize},
     prelude::{ContainerExt, LabelExt, LinkButtonExt},
-    Align, Box, Frame, Label, LinkButton, Orientation, ScrolledWindow, Widget,
+    Align, Box, Frame, Label, LinkButton, Orientation, Widget,
 };
 use html5ever::{local_name, tree_builder::NodeOrText};
 use std::{
@@ -14,10 +15,10 @@ use std::{
 static FRAME: AtomicBool = AtomicBool::new(false);
 
 impl Document {
-    pub fn render(&self, view: &Rc<ScrolledWindow>) -> Widget {
+    pub fn render(&self, browser: &Rc<Browser>) -> Widget {
         FRAME.store(std::env::var_os("FRAME").is_some(), Ordering::Relaxed);
         self.elements[&Handle(0)]
-            .render(self, view)
+            .render(self, browser)
             .unwrap_or_else(|| Box::default().into())
     }
 }
@@ -26,7 +27,7 @@ impl Element {
     pub fn render(
         &self,
         document: &Document,
-        view: &Rc<ScrolledWindow>,
+        browser: &Rc<Browser>,
     ) -> Option<Widget> {
         if self.is_invisible() {
             return None;
@@ -43,7 +44,7 @@ impl Element {
                     if let Some(node) = document
                         .elements
                         .get(node)
-                        .and_then(|it| it.render(document, view))
+                        .and_then(|it| it.render(document, browser))
                     {
                         contains_something = true;
                         widget.add(&node);
@@ -60,10 +61,10 @@ impl Element {
                     ) {
                         let link = LinkButton::with_label(href, text);
                         link.connect_activate_link(
-                            clone!(@strong view => move |link| {
+                            clone!(@strong browser => move |link| {
                                 link.uri().map_or(Propagation::Proceed, |uri| {
                                     // FIXME: show error
-                                    let _ = crate::open(&uri, &view);
+                                    let _ = browser.open(&uri);
                                     Propagation::Stop
                                 })
                             }),
