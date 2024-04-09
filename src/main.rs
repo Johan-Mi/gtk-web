@@ -8,7 +8,8 @@ use gtk::{
     Entry, InfoBar, ScrolledWindow,
 };
 use html5ever::tendril::{ByteTendril, TendrilSink};
-use std::{error::Error, rc::Rc, sync::mpsc};
+use std::{cell::RefCell, error::Error, rc::Rc, sync::mpsc};
+use url::Url;
 
 fn main() -> gtk::glib::ExitCode {
     let app = Application::builder()
@@ -36,6 +37,7 @@ fn activate(app: &Application) {
         view,
         info_bar,
         url_bar,
+        current_url: RefCell::default(),
     });
 
     browser.url_bar.connect_key_press_event(
@@ -88,6 +90,7 @@ struct Browser {
     view: ScrolledWindow,
     info_bar: InfoBar,
     url_bar: Entry,
+    current_url: RefCell<Option<Url>>,
 }
 
 impl Browser {
@@ -103,20 +106,33 @@ impl Browser {
     }
 
     fn open_impl(self: &Rc<Self>, url: &str) -> Result<(), Box<dyn Error>> {
+        let joined_url;
+        let url = if let Some(current) = &*self.current_url.borrow() {
+            joined_url = current.join(url)?.to_string();
+            &*joined_url
+        } else {
+            url
+        };
+
         let parts = mpsc::channel::<Box<[u8]>>();
 
         let url = std::thread::scope(|scope| {
             scope
                 .spawn(|| {
                     let mut easy = curl::easy::Easy::new();
-                    easy.url(url)?;
+                    easy.url(url).map_err(|it| it.to_string())?;
                     easy.write_function(move |bytes| {
                         parts.0.send(bytes.into()).unwrap();
                         Ok(bytes.len())
-                    })?;
-                    easy.follow_location(true)?;
-                    easy.perform()?;
-                    easy.effective_url().map(Option::unwrap).map(String::from)
+                    })
+                    .map_err(|it| it.to_string())?;
+                    easy.follow_location(true).map_err(|it| it.to_string())?;
+                    easy.perform().map_err(|it| it.to_string())?;
+                    Ok::<_, String>(String::from(
+                        easy.effective_url()
+                            .map_err(|it| it.to_string())?
+                            .unwrap(),
+                    ))
                 })
                 .join()
         })
@@ -137,6 +153,7 @@ impl Browser {
         content.show_all();
 
         self.url_bar.set_text(&url);
+        self.current_url.replace(Url::parse(&url).ok());
 
         Ok(())
     }
