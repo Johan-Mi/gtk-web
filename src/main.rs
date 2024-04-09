@@ -38,6 +38,7 @@ fn activate(app: &Application) {
         info_bar,
         url_bar,
         current_url: RefCell::default(),
+        frame: std::env::var_os("FRAME").is_some(),
     });
 
     browser.url_bar.connect_key_press_event(
@@ -91,6 +92,7 @@ struct Browser {
     info_bar: InfoBar,
     url_bar: Entry,
     current_url: RefCell<Option<Url>>,
+    frame: bool,
 }
 
 impl Browser {

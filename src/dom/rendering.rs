@@ -7,16 +7,10 @@ use gtk::{
     Align, Box, Frame, Label, LinkButton, Orientation, Widget,
 };
 use html5ever::{local_name, tree_builder::NodeOrText};
-use std::{
-    rc::Rc,
-    sync::atomic::{AtomicBool, Ordering},
-};
-
-static FRAME: AtomicBool = AtomicBool::new(false);
+use std::rc::Rc;
 
 impl Document {
     pub fn render(&self, browser: &Rc<Browser>) -> Widget {
-        FRAME.store(std::env::var_os("FRAME").is_some(), Ordering::Relaxed);
         self.elements[&Handle(0)]
             .render(self, browser)
             .unwrap_or_else(|| Box::default().into())
@@ -83,7 +77,7 @@ impl Element {
             }
         }
         contains_something.then(|| {
-            if FRAME.load(Ordering::Relaxed) {
+            if browser.frame {
                 Frame::builder()
                     .label(&*self.name.local)
                     .child(&widget)
