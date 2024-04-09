@@ -91,7 +91,10 @@ impl Element {
     }
 
     const fn is_invisible(&self) -> bool {
-        matches!(self.name.local, local_name!("head") | local_name!("script"))
+        matches!(
+            self.name.local,
+            local_name!("head") | local_name!("script") | local_name!("style")
+        )
     }
 
     fn style_label(&self, label: &Label) {
