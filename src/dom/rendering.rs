@@ -34,8 +34,13 @@ impl Element {
         }
 
         let mut contains_something = false;
+        let orientation = if self.name.local == local_name!("p") {
+            Orientation::Horizontal
+        } else {
+            Orientation::Vertical
+        };
         let widget = gtk::Box::builder()
-            .orientation(Orientation::Vertical)
+            .orientation(orientation)
             .halign(Align::Start)
             .build();
         for child in &self.children {
