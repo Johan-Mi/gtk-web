@@ -45,7 +45,7 @@ fn activate(app: &Application) {
             if event.keyval().to_unicode() != Some('\r') {
                 return gtk::glib::Propagation::Proceed;
             }
-            browser.open(&url_bar.text());
+            browser.open(&url_bar.text(), true);
             gtk::glib::Propagation::Stop
         }),
     );
@@ -94,8 +94,8 @@ struct Browser {
 }
 
 impl Browser {
-    fn open(self: &Rc<Self>, url: &str) {
-        if let Err(err) = self.open_impl(url) {
+    fn open(self: &Rc<Self>, url: &str, absolute: bool) {
+        if let Err(err) = self.open_impl(url, absolute) {
             for child in self.info_bar.children() {
                 self.info_bar.remove(&child);
             }
@@ -105,9 +105,15 @@ impl Browser {
         }
     }
 
-    fn open_impl(self: &Rc<Self>, url: &str) -> Result<(), Box<dyn Error>> {
+    fn open_impl(
+        self: &Rc<Self>,
+        url: &str,
+        absolute: bool,
+    ) -> Result<(), Box<dyn Error>> {
         let joined_url;
-        let url = if let Some(current) = &*self.current_url.borrow() {
+        let url = if absolute {
+            url
+        } else if let Some(current) = &*self.current_url.borrow() {
             joined_url = current.join(url)?.to_string();
             &*joined_url
         } else {
