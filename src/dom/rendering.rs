@@ -1,7 +1,7 @@
 use super::{Document, Element, Handle};
 use crate::Browser;
 use gtk::{
-    glib::{clone, Propagation},
+    glib::{clone, markup_escape_text, Propagation},
     pango::{AttrList, AttrSize},
     prelude::{ContainerExt, LabelExt, LinkButtonExt},
     Align, Box, Frame, Label, LinkButton, Orientation, Widget,
@@ -103,7 +103,20 @@ impl Element {
     }
 
     fn style_label(&self, label: &Label) {
-        if let Some(scale) = match self.name.local {
+        if matches!(self.name.local, local_name!("i") | local_name!("em")) {
+            label.set_markup(&format!(
+                "<i>{}</i>",
+                markup_escape_text(&label.text())
+            ));
+        } else if matches!(
+            self.name.local,
+            local_name!("b") | local_name!("strong")
+        ) {
+            label.set_markup(&format!(
+                "<b>{}</b>",
+                markup_escape_text(&label.text())
+            ));
+        } else if let Some(scale) = match self.name.local {
             local_name!("h1") => Some(32),
             local_name!("h2") => Some(24),
             local_name!("h3") => Some(19),
