@@ -55,7 +55,7 @@ fn activate(app: &Application) {
         .application(app)
         .default_width(320)
         .default_height(200)
-        .title("Hello, World!")
+        .title("GTK-Web")
         .child(
             &gtk::Grid::builder()
                 .orientation(gtk::Orientation::Vertical)
