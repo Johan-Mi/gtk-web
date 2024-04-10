@@ -3,12 +3,15 @@
 
 mod dom;
 
+use async_channel::Receiver;
 use gtk::{
-    gio::ActionEntry, glib::clone, prelude::*, Application, ApplicationWindow,
-    Entry, InfoBar, ScrolledWindow,
+    gio::ActionEntry,
+    glib::{clone, GString},
+    prelude::*,
+    Application, ApplicationWindow, Entry, InfoBar, ScrolledWindow,
 };
-use html5ever::tendril::{ByteTendril, TendrilSink};
-use std::{cell::RefCell, error::Error, rc::Rc, sync::mpsc};
+use html5ever::tendril::TendrilSink;
+use std::{cell::RefCell, rc::Rc};
 use url::Url;
 
 fn main() -> gtk::glib::ExitCode {
@@ -46,7 +49,7 @@ fn activate(app: &Application) {
             if event.keyval().to_unicode() != Some('\r') {
                 return gtk::glib::Propagation::Proceed;
             }
-            browser.open(&url_bar.text(), true);
+            browser.clone().open(url_bar.text(), true);
             gtk::glib::Propagation::Stop
         }),
     );
@@ -96,73 +99,80 @@ struct Browser {
 }
 
 impl Browser {
-    fn open(self: &Rc<Self>, url: &str, absolute: bool) {
-        if let Err(err) = self.open_impl(url, absolute) {
-            for child in self.info_bar.children() {
-                self.info_bar.remove(&child);
+    fn open(self: Rc<Self>, url: GString, absolute: bool) {
+        let current_url = self.current_url.borrow().clone();
+        gtk::glib::spawn_future_local(async move {
+            match gtk::gio::spawn_blocking(move || {
+                open_impl(&url, current_url, absolute)
+            })
+            .await
+            .unwrap()
+            {
+                Ok((url, parts)) => {
+                    let mut parser = html5ever::parse_document(
+                        dom::Sink::new(),
+                        html5ever::ParseOpts::default(),
+                    )
+                    .from_utf8();
+
+                    while let Ok(part) = parts.recv().await {
+                        parser.process((*part).into());
+                    }
+
+                    let document = parser.finish();
+                    let content = document.render(&self);
+                    if let Some(child) = self.view.child() {
+                        self.view.remove(&child);
+                    }
+                    self.view.set_child(Some(&content));
+                    content.show_all();
+
+                    self.url_bar.set_text(&url);
+                    self.current_url.replace(Url::parse(&url).ok());
+                }
+                Err(err) => {
+                    for child in self.info_bar.children() {
+                        self.info_bar.remove(&child);
+                    }
+                    self.info_bar.set_child(Some(&gtk::Label::new(Some(&err))));
+                    self.info_bar.show_all();
+                }
             }
-            self.info_bar
-                .set_child(Some(&gtk::Label::new(Some(&err.to_string()))));
-            self.info_bar.show_all();
-        }
+        });
     }
+}
 
-    fn open_impl(
-        self: &Rc<Self>,
-        url: &str,
-        absolute: bool,
-    ) -> Result<(), Box<dyn Error>> {
-        let joined_url;
-        let url = if absolute {
-            url
-        } else if let Some(current) = &*self.current_url.borrow() {
-            joined_url = current.join(url)?.to_string();
-            &*joined_url
-        } else {
-            url
-        };
+type ByteReceiver = Receiver<Box<[u8]>>;
 
-        let parts = mpsc::channel::<Box<[u8]>>();
+fn open_impl(
+    url: &str,
+    current_url: Option<Url>,
+    absolute: bool,
+) -> Result<(String, ByteReceiver), String> {
+    let joined_url;
+    let url = if absolute {
+        url
+    } else if let Some(current) = current_url {
+        joined_url =
+            current.join(url).map_err(|it| it.to_string())?.to_string();
+        &*joined_url
+    } else {
+        url
+    };
 
-        let url = std::thread::scope(|scope| {
-            scope
-                .spawn(|| {
-                    let mut easy = curl::easy::Easy::new();
-                    easy.url(url).map_err(|it| it.to_string())?;
-                    easy.write_function(move |bytes| {
-                        parts.0.send(bytes.into()).unwrap();
-                        Ok(bytes.len())
-                    })
-                    .map_err(|it| it.to_string())?;
-                    easy.follow_location(true).map_err(|it| it.to_string())?;
-                    easy.perform().map_err(|it| it.to_string())?;
-                    Ok::<_, String>(String::from(
-                        easy.effective_url()
-                            .map_err(|it| it.to_string())?
-                            .unwrap(),
-                    ))
-                })
-                .join()
-        })
-        .unwrap()?;
+    let parts = async_channel::unbounded::<Box<[u8]>>();
 
-        let document = html5ever::parse_document(
-            dom::Sink::new(),
-            html5ever::ParseOpts::default(),
-        )
-        .from_utf8()
-        .from_iter(parts.1.into_iter().map(|it| ByteTendril::from(&*it)));
+    let mut easy = curl::easy::Easy::new();
+    easy.url(url).map_err(|it| it.to_string())?;
+    easy.write_function(move |bytes| {
+        parts.0.send_blocking(bytes.into()).unwrap();
+        Ok(bytes.len())
+    })
+    .map_err(|it| it.to_string())?;
+    easy.follow_location(true).map_err(|it| it.to_string())?;
+    easy.perform().map_err(|it| it.to_string())?;
 
-        let content = document.render(self);
-        if let Some(child) = self.view.child() {
-            self.view.remove(&child);
-        }
-        self.view.set_child(Some(&content));
-        content.show_all();
+    let url = easy.effective_url().map_err(|it| it.to_string())?.unwrap();
 
-        self.url_bar.set_text(&url);
-        self.current_url.replace(Url::parse(&url).ok());
-
-        Ok(())
-    }
+    Ok((url.into(), parts.1))
 }
